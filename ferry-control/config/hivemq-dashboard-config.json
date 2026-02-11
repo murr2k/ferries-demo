@@ -1,0 +1,44 @@
+{
+  "name": "BC Ferries Fleet Monitor",
+  "description": "Real-time monitoring of BC Ferries vessel telemetry",
+  "panels": [
+    {
+      "name": "Vessel Telemetry",
+      "topic": "ferry/vessel/+/telemetry",
+      "type": "json_viewer",
+      "color": "#2196F3",
+      "alerts": {
+        "enabled": true,
+        "conditions": [
+          "power.batterySOC < 20",
+          "safety.fireAlarm == true",
+          "engine.temperature > 100"
+        ]
+      }
+    },
+    {
+      "name": "Emergency Alerts",
+      "topic": "ferry/vessel/+/emergency/+",
+      "type": "alert_panel",
+      "color": "#F44336",
+      "alerts": {
+        "enabled": true,
+        "sound": true,
+        "desktop": true
+      }
+    },
+    {
+      "name": "System Status",
+      "topic": "ferry/system/status",
+      "type": "status_indicator",
+      "color": "#9C27B0"
+    }
+  ],
+  "settings": {
+    "autoRefresh": true,
+    "refreshInterval": 1000,
+    "maxMessages": 1000,
+    "jsonPretty": true,
+    "timestampFormat": "ISO"
+  }
+}

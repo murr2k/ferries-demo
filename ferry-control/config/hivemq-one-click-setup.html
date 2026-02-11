@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BC Ferries HiveMQ One-Click Setup</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .ferry-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .connection-params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .param-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .param-label {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .param-value {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 8px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        
+        .topic-list {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .topic-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .topic-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .topic-info {
+            flex-grow: 1;
+        }
+        
+        .topic-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .topic-desc {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .step {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .step-number {
+            background: #ffc107;
+            color: #212529;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .status-secure {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .copy-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+        
+        .copy-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="ferry-icon">🚢</div>
+            <h1>BC Ferries HiveMQ One-Click Setup</h1>
+            <p>Automated configuration for HiveMQ Cloud Web Client</p>
+        </div>
+
+        <div class="config-section">
+            <h2>🔐 Secure TLS Connection</h2>
+            <div class="status-indicator status-secure">
+                ✅ TLS Enabled • Certificate Validated • Enterprise Security
+            </div>
+            
+            <div class="connection-params">
+                <div class="param-item">
+                    <div class="param-label">Broker Host</div>
+                    <div class="param-value">bc-ferries-mqtt-broker.fly.dev</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Port</div>
+                    <div class="param-value">9001</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">SSL/TLS</div>
+                    <div class="param-value">✅ ENABLED</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Username</div>
+                    <div class="param-value">murr2k</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Password</div>
+                    <div class="param-value">faster.boat</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Keep Alive</div>
+                    <div class="param-value">60</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2>🎯 Topic Subscriptions</h2>
+            <p>All BC Ferries vessel monitoring topics with optimized QoS and color coding:</p>
+            
+            <div class="topic-list">
+                <div class="topic-item" style="border-left-color: #2196F3;">
+                    <div class="topic-color" style="background: #2196F3;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/vessel/+/telemetry</div>
+                        <div class="topic-desc">Real-time vessel telemetry data (engine, power, navigation)</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+                
+                <div class="topic-item" style="border-left-color: #F44336;">
+                    <div class="topic-color" style="background: #F44336;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/vessel/+/emergency/+</div>
+                        <div class="topic-desc">Critical emergency alerts (fire, medical, mechanical)</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+                
+                <div class="topic-item" style="border-left-color: #4CAF50;">
+                    <div class="topic-color" style="background: #4CAF50;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/vessel/+/status/+</div>
+                        <div class="topic-desc">Vessel system status updates</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+                
+                <div class="topic-item" style="border-left-color: #9C27B0;">
+                    <div class="topic-color" style="background: #9C27B0;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/system/status</div>
+                        <div class="topic-desc">Overall fleet system health monitoring</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+                
+                <div class="topic-item" style="border-left-color: #FF9800;">
+                    <div class="topic-color" style="background: #FF9800;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/weather/+</div>
+                        <div class="topic-desc">Weather and environmental conditions</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+                
+                <div class="topic-item" style="border-left-color: #FFEB3B;">
+                    <div class="topic-color" style="background: #FFEB3B;"></div>
+                    <div class="topic-info">
+                        <div class="topic-name">ferry/alerts/+</div>
+                        <div class="topic-desc">General operational alerts and notifications</div>
+                    </div>
+                    <span>QoS 1</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2>🚀 Quick Setup Steps</h2>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Open HiveMQ Web Client</strong><br>
+                Go to the official HiveMQ web client interface
+                <div style="margin-top: 10px;">
+                    <a href="https://www.hivemq.com/demos/websocket-client/" target="_blank" class="btn">
+                        🌐 Open HiveMQ Web Client
+                    </a>
+                </div>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Auto-Configure (Recommended)</strong><br>
+                Copy and run this script in the browser console (F12) for automatic setup:
+                <button class="copy-btn" onclick="copyAutomationScript()">📋 Copy Script</button>
+                <div class="code-block" id="automationScript">
+// Paste this in browser console on HiveMQ web client page
+// BC Ferries Auto-Configuration Script
+(function(){
+  const config = {
+    host: 'bc-ferries-mqtt-broker.fly.dev',
+    port: 9001,
+    ssl: true,
+    username: 'murr2k',
+    password: 'faster.boat',
+    topics: [
+      'ferry/vessel/+/telemetry',
+      'ferry/vessel/+/emergency/+',
+      'ferry/vessel/+/status/+',
+      'ferry/system/status',
+      'ferry/weather/+',
+      'ferry/alerts/+'
+    ]
+  };
+  
+  console.log('🚢 BC Ferries Auto-Setup Starting...');
+  // Auto-fill connection parameters
+  setTimeout(() => {
+    const fillField = (name, value) => {
+      const field = document.querySelector(`[name="${name}"], #${name}`);
+      if (field) { field.value = value; field.dispatchEvent(new Event('input')); }
+    };
+    
+    fillField('host', config.host);
+    fillField('port', config.port);
+    fillField('username', config.username);
+    fillField('password', config.password);
+    
+    const sslBox = document.querySelector('[name="ssl"], #ssl');
+    if (sslBox && !sslBox.checked) sslBox.click();
+    
+    console.log('✅ Connection configured. Click Connect, then run setupTopics()');
+    
+    window.setupTopics = () => {
+      config.topics.forEach((topic, i) => {
+        setTimeout(() => {
+          const addBtn = document.querySelector('button:contains("Add"), [class*="add"]');
+          if (addBtn) addBtn.click();
+          
+          setTimeout(() => {
+            const topicField = document.querySelector('input[name*="topic"]:last');
+            if (topicField) {
+              topicField.value = topic;
+              topicField.dispatchEvent(new Event('input'));
+            }
+            
+            const subscribeBtn = document.querySelector('button:contains("Subscribe"):last');
+            if (subscribeBtn) subscribeBtn.click();
+            
+            console.log(`📡 Subscribed to: ${topic}`);
+          }, 500);
+        }, i * 1000);
+      });
+    };
+  }, 1000);
+})();
+                </div>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Manual Setup (Alternative)</strong><br>
+                If auto-setup doesn't work, configure manually using the parameters above
+                <div style="margin-top: 10px;">
+                    <a href="#manual-instructions" class="btn btn-warning">📋 View Manual Instructions</a>
+                </div>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>Verify Connection</strong><br>
+                You should see live BC Ferries vessel data streaming in real-time
+                <div style="margin-top: 10px;">
+                    <span class="btn btn-success">✅ Start Monitoring</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section" id="manual-instructions">
+            <h2>📋 Manual Configuration Guide</h2>
+            <p>If the automation script doesn't work, follow these manual steps:</p>
+            
+            <h3>Connection Setup:</h3>
+            <ol>
+                <li>Fill in <strong>Host:</strong> bc-ferries-mqtt-broker.fly.dev</li>
+                <li>Set <strong>Port:</strong> 9001</li>
+                <li>Check <strong>SSL</strong> checkbox ✅</li>
+                <li>Enter <strong>Username:</strong> murr2k</li>
+                <li>Enter <strong>Password:</strong> faster.boat</li>
+                <li>Set <strong>Keep Alive:</strong> 60</li>
+                <li>Check <strong>Clean Session</strong> ✅</li>
+                <li>Click <strong>Connect</strong></li>
+            </ol>
+            
+            <h3>Topic Subscriptions:</h3>
+            <p>For each topic, click "Add New Topic Subscription" and enter:</p>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                <strong>Topic 1:</strong> ferry/vessel/+/telemetry (QoS: 1, Color: Blue)<br>
+                <strong>Topic 2:</strong> ferry/vessel/+/emergency/+ (QoS: 1, Color: Red)<br>
+                <strong>Topic 3:</strong> ferry/vessel/+/status/+ (QoS: 1, Color: Green)<br>
+                <strong>Topic 4:</strong> ferry/system/status (QoS: 1, Color: Purple)<br>
+                <strong>Topic 5:</strong> ferry/weather/+ (QoS: 1, Color: Orange)<br>
+                <strong>Topic 6:</strong> ferry/alerts/+ (QoS: 1, Color: Yellow)
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2>🔧 Troubleshooting</h2>
+            <p><strong>Connection Issues:</strong></p>
+            <ul>
+                <li>Ensure SSL is enabled - this is critical!</li>
+                <li>Check that username/password are exactly: murr2k / faster.boat</li>
+                <li>Verify port is 9001 (not 1883)</li>
+            </ul>
+            
+            <p><strong>No Data Visible:</strong></p>
+            <ul>
+                <li>Verify all topic subscriptions are active</li>
+                <li>Check that bc-ferries-control-new.fly.dev is running</li>
+                <li>Wait up to 60 seconds for telemetry cycle</li>
+            </ul>
+        </div>
+
+        <div class="config-section">
+            <h2>📊 What You'll See</h2>
+            <p>Once connected, you'll receive real-time data including:</p>
+            <ul>
+                <li><strong>Telemetry:</strong> Engine RPM, battery levels, power modes, navigation data</li>
+                <li><strong>Location:</strong> GPS coordinates, heading, route information</li>
+                <li><strong>Safety:</strong> Fire alarms, bilge levels, CO2 monitoring</li>
+                <li><strong>System Status:</strong> Vessel operational state, system health</li>
+                <li><strong>Weather:</strong> Wind speed, visibility, wave conditions</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function copyAutomationScript() {
+            const script = document.getElementById('automationScript').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                alert('✅ Automation script copied to clipboard!\n\nNow:\n1. Go to HiveMQ Web Client\n2. Press F12 to open console\n3. Paste and press Enter');
+            }).catch(() => {
+                alert('Please manually copy the script from the code block above');
+            });
+        }
+        
+        // Add smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

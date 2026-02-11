@@ -1,0 +1,108 @@
+{
+  "name": "BC Ferries Fleet Monitoring",
+  "description": "HiveMQ Cloud configuration for BC Ferries vessel telemetry",
+  "created": "2025-09-01T18:50:29.237Z",
+  "connection": {
+    "host": "bc-ferries-mqtt-broker.fly.dev",
+    "port": 9001,
+    "protocol": "wss",
+    "ssl": true,
+    "username": "murr2k",
+    "password": "faster.boat",
+    "keepAlive": 60,
+    "cleanSession": true,
+    "connectTimeout": 30000,
+    "tls": {
+      "rejectUnauthorized": true,
+      "servername": "bc-ferries-mqtt-broker.fly.dev"
+    }
+  },
+  "subscriptions": [
+    {
+      "topic": "ferry/vessel/+/telemetry",
+      "qos": 1,
+      "color": "#2196F3",
+      "description": "Real-time vessel telemetry data"
+    },
+    {
+      "topic": "ferry/vessel/+/emergency/+",
+      "qos": 1,
+      "color": "#F44336",
+      "description": "Critical emergency alerts"
+    },
+    {
+      "topic": "ferry/vessel/+/status/+",
+      "qos": 1,
+      "color": "#4CAF50",
+      "description": "Vessel system status updates"
+    },
+    {
+      "topic": "ferry/system/status",
+      "qos": 1,
+      "color": "#9C27B0",
+      "description": "Overall system health"
+    },
+    {
+      "topic": "ferry/weather/+",
+      "qos": 1,
+      "color": "#FF9800",
+      "description": "Weather and environmental data"
+    },
+    {
+      "topic": "ferry/alerts/+",
+      "qos": 1,
+      "color": "#FFEB3B",
+      "description": "General operational alerts"
+    }
+  ],
+  "monitoring": {
+    "alerts": {
+      "emergency": {
+        "enabled": true,
+        "sound": true,
+        "desktop": true,
+        "topics": [
+          "ferry/vessel/+/emergency/+"
+        ]
+      },
+      "critical": {
+        "enabled": true,
+        "conditions": [
+          "safety.fireAlarm == true",
+          "engine.temperature > 100",
+          "power.batterySOC < 20"
+        ]
+      }
+    },
+    "display": {
+      "maxMessages": 1000,
+      "autoScroll": true,
+      "jsonPretty": true,
+      "timestampFormat": "ISO",
+      "showQos": true,
+      "showRetained": true
+    },
+    "filters": {
+      "vesselTelemetry": {
+        "topic": "ferry/vessel/+/telemetry",
+        "fields": [
+          "vesselId",
+          "engine.rpm",
+          "power.batterySOC",
+          "safety.fireAlarm",
+          "location"
+        ]
+      },
+      "emergencyAlerts": {
+        "topic": "ferry/vessel/+/emergency/+",
+        "fields": [
+          "vesselId",
+          "type",
+          "severity",
+          "message",
+          "location"
+        ]
+      }
+    }
+  }
+}

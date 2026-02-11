@@ -1,0 +1,23 @@
+app = "bc-ferries-control-new"
+primary_region = "sea"  # Seattle - closest to BC Ferries operations
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = false
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "15s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MQTT Instrumentation Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .connected { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .logs { 
+            background: #000; 
+            color: #0f0; 
+            padding: 15px; 
+            border-radius: 4px; 
+            height: 400px; 
+            overflow-y: scroll; 
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        button { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 10px 15px; 
+            margin: 5px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { background: #005999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 MQTT Instrumentation Test</h1>
+        <p>This page tests the MQTT dependency chain instrumentation with mock scenarios.</p>
+        
+        <!-- Mock MQTT status elements that the real dashboard would have -->
+        <div id="mqttStatusIndicator" class="status">📡 MQTT Status Indicator</div>
+        <div id="mqttStatusText">MQTT: Testing...</div>
+        
+        <div style="margin: 20px 0;">
+            <button onclick="testConnection()">Test MQTT Connection</button>
+            <button onclick="testError()">Test Error Scenario</button>
+            <button onclick="testReconnect()">Test Reconnection</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+        
+        <h3>📋 Console Logs (Monitor browser console for full instrumentation):</h3>
+        <div id="logs" class="logs">Instrumentation logs will appear here and in browser console...\n</div>
+    </div>
+
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    
+    <!-- Include the instrumented files -->
+    <script>
+        // Mock dashboard object for testing
+        window.dashboard = {
+            updateMQTTStatus: function(status) {
+                console.log('[TEST] Dashboard.updateMQTTStatus called with:', status);
+                logToPage('[TEST] Dashboard.updateMQTTStatus called with: ' + status);
+                
+                // Update mock UI
+                const indicator = document.getElementById('mqttStatusIndicator');
+                const text = document.getElementById('mqttStatusText');
+                
+                indicator.className = 'status ' + status;
+                text.textContent = 'MQTT: ' + status.toUpperCase();
+            }
+        };
+
+        function logToPage(message) {
+            const logs = document.getElementById('logs');
+            logs.textContent += new Date().toISOString() + ' - ' + message + '\n';
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Override console.log to capture instrumentation logs
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('[MQTT-') || message.includes('[STATUS-UPDATE]') || 
+                message.includes('[DOM-CHECK]') || message.includes('[UI-UPDATE]') ||
+                message.includes('[DASHBOARD-INIT]')) {
+                logToPage(message);
+            }
+            originalLog.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('[MQTT-') || message.includes('[STATUS-UPDATE]') || 
+                message.includes('[DOM-CHECK]')) {
+                logToPage('WARN: ' + message);
+            }
+            originalWarn.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('[MQTT-') || message.includes('[DOM-CHECK]')) {
+                logToPage('ERROR: ' + message);
+            }
+            originalError.apply(console, args);
+        };
+
+        // Test functions
+        function testConnection() {
+            console.log('[TEST] Testing connection scenario...');
+            logToPage('[TEST] Testing MQTT connection scenario');
+            
+            // Simulate the instrumented connection flow
+            console.log('[MQTT-AUTH] ⚠️ No authentication credentials - connecting anonymously');
+            console.log('[MQTT-CONNECT] ✅ MQTT connected to broker at ' + new Date().toISOString());
+            console.log('[STATUS-UPDATE] Calling updateMQTTStatus with "connected"');
+            
+            if (window.dashboard) {
+                window.dashboard.updateMQTTStatus('connected');
+            }
+        }
+
+        function testError() {
+            console.log('[TEST] Testing error scenario...');
+            logToPage('[TEST] Testing MQTT error scenario');
+            
+            console.log('[MQTT-CONNECT] ❌ MQTT error at ' + new Date().toISOString() + ' : Error: WebSocket connection failed');
+            console.log('[STATUS-UPDATE] Calling updateMQTTStatus with "error"');
+            
+            if (window.dashboard) {
+                window.dashboard.updateMQTTStatus('error');
+            }
+        }
+
+        function testReconnect() {
+            console.log('[TEST] Testing reconnection scenario...');
+            logToPage('[TEST] Testing MQTT reconnection scenario');
+            
+            console.log('[MQTT-CONNECT] 🔌 MQTT disconnected at ' + new Date().toISOString());
+            console.log('[STATUS-UPDATE] Calling updateMQTTStatus with "disconnected"');
+            window.dashboard.updateMQTTStatus('disconnected');
+            
+            setTimeout(() => {
+                console.log('[MQTT-CONNECT] 🔄 MQTT reconnecting at ' + new Date().toISOString());
+                console.log('[STATUS-UPDATE] Calling updateMQTTStatus with "connecting"');
+                window.dashboard.updateMQTTStatus('connecting');
+                
+                setTimeout(() => {
+                    console.log('[MQTT-CONNECT] ✅ MQTT connected to broker at ' + new Date().toISOString());
+                    console.log('[STATUS-UPDATE] Calling updateMQTTStatus with "connected"');
+                    window.dashboard.updateMQTTStatus('connected');
+                }, 2000);
+            }, 1000);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').textContent = 'Logs cleared...\n';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[DASHBOARD-INIT] DOM loaded, initializing dashboard');
+            console.log('[DOM-CHECK] Initializing dashboard elements');
+            console.log('[DOM-CHECK] ✅ mqttStatusIndicator element found');
+            console.log('[DOM-CHECK] ✅ mqttStatusText element found');
+            console.log('[DASHBOARD-INIT] ✅ Dashboard initialized and available on window object');
+            
+            logToPage('🔍 MQTT Instrumentation Test Page Loaded');
+            logToPage('📋 Open browser console to see full instrumentation logs');
+            logToPage('🧪 Click buttons above to test different scenarios');
+        });
+    </script>
+</body>
+</html>

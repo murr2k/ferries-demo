@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BC Ferries Operations Center - Maritime Monitoring Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
+</head>
+<body class="ops-dashboard">
+    <!-- Header Bar -->
+    <header class="ops-header">
+        <div class="header-left">
+            <div class="logo">
+                <i class="fas fa-ship"></i>
+                <span>BC Ferries Operations Center</span>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-item">
+                    <i class="fas fa-circle" id="wsStatusIndicator"></i>
+                    <span id="wsStatusText">WebSocket: Connecting...</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-circle" id="mqttStatusIndicator"></i>
+                    <span id="mqttStatusText">MQTT: Connecting...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="header-center">
+            <div class="current-time">
+                <div id="currentTime"></div>
+                <div id="currentDate"></div>
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <div class="weather-summary" id="weatherSummary">
+                <i class="fas fa-cloud-sun"></i>
+                <span id="weatherText">Loading...</span>
+            </div>
+            <div class="alert-summary" id="alertSummary">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="alertCount">0 Alerts</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-grid">
+        <!-- Fleet Overview Panel -->
+        <section class="panel fleet-overview">
+            <div class="panel-header">
+                <h2><i class="fas fa-ship"></i> Fleet Status</h2>
+                <div class="panel-controls">
+                    <button class="btn-icon" onclick="refreshFleetData()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="fleet-stats">
+                    <div class="stat-card operational">
+                        <div class="stat-number" id="operationalVessels">0</div>
+                        <div class="stat-label">Operational</div>
+                    </div>
+                    <div class="stat-card maintenance">
+                        <div class="stat-number" id="maintenanceVessels">0</div>
+                        <div class="stat-label">Maintenance</div>
+                    </div>
+                    <div class="stat-card emergency">
+                        <div class="stat-number" id="emergencyVessels">0</div>
+                        <div class="stat-label">Emergency</div>
+                    </div>
+                </div>
+                <div class="vessel-list" id="vesselList">
+                    <!-- Vessels will be populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Selected Vessel Detail -->
+        <section class="panel vessel-detail">
+            <div class="panel-header">
+                <h2><i class="fas fa-info-circle"></i> Vessel Detail</h2>
+                <div class="vessel-selector">
+                    <select id="vesselSelect">
+                        <option value="">Select Vessel...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel-content" id="vesselDetailContent">
+                <div class="no-selection">
+                    <i class="fas fa-ship fa-3x"></i>
+                    <p>Select a vessel to view detailed telemetry</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Engine Performance Gauges -->
+        <section class="panel engine-gauges">
+            <div class="panel-header">
+                <h2><i class="fas fa-tachometer-alt"></i> Engine Performance</h2>
+            </div>
+            <div class="panel-content">
+                <div class="gauge-container">
+                    <div class="gauge-wrapper">
+                        <canvas id="rpmGauge" width="200" height="200"></canvas>
+                        <div class="gauge-label">Engine RPM</div>
+                        <div class="gauge-value" id="rpmValue">-- RPM</div>
+                    </div>
+                    <div class="gauge-wrapper">
+                        <canvas id="tempGauge" width="200" height="200"></canvas>
+                        <div class="gauge-label">Temperature</div>
+                        <div class="gauge-value" id="tempValue">-- °C</div>
+                    </div>
+                    <div class="gauge-wrapper">
+                        <canvas id="fuelGauge" width="200" height="200"></canvas>
+                        <div class="gauge-label">Fuel Flow</div>
+                        <div class="gauge-value" id="fuelValue">-- L/h</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Power Systems -->
+        <section class="panel power-systems">
+            <div class="panel-header">
+                <h2><i class="fas fa-battery-three-quarters"></i> Power Systems</h2>
+            </div>
+            <div class="panel-content">
+                <div class="power-grid">
+                    <div class="power-item">
+                        <div class="power-label">Battery SOC</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="batteryProgress"></div>
+                            <div class="progress-text" id="batteryText">-- %</div>
+                        </div>
+                    </div>
+                    <div class="power-item">
+                        <div class="power-label">Generator Load</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="generatorProgress"></div>
+                            <div class="progress-text" id="generatorText">-- %</div>
+                        </div>
+                    </div>
+                    <div class="power-item">
+                        <div class="power-label">Power Mode</div>
+                        <div class="power-mode" id="powerMode">--</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Safety Systems -->
+        <section class="panel safety-systems">
+            <div class="panel-header">
+                <h2><i class="fas fa-shield-alt"></i> Safety Systems</h2>
+            </div>
+            <div class="panel-content">
+                <div class="safety-grid">
+                    <div class="safety-item">
+                        <div class="safety-icon" id="fireIcon">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="safety-label">Fire Alarm</div>
+                        <div class="safety-status" id="fireStatus">NORMAL</div>
+                    </div>
+                    <div class="safety-item">
+                        <div class="safety-icon" id="bilgeIcon">
+                            <i class="fas fa-water"></i>
+                        </div>
+                        <div class="safety-label">Bilge Level</div>
+                        <div class="safety-status" id="bilgeStatus">-- cm</div>
+                    </div>
+                    <div class="safety-item">
+                        <div class="safety-icon" id="co2Icon">
+                            <i class="fas fa-lungs"></i>
+                        </div>
+                        <div class="safety-label">CO2 Level</div>
+                        <div class="safety-status" id="co2Status">-- ppm</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Display -->
+        <section class="panel navigation-display">
+            <div class="panel-header">
+                <h2><i class="fas fa-compass"></i> Navigation</h2>
+            </div>
+            <div class="panel-content">
+                <div class="nav-grid">
+                    <div class="nav-item">
+                        <div class="nav-label">Current Speed</div>
+                        <div class="nav-value" id="speedValue">-- kts</div>
+                    </div>
+                    <div class="nav-item">
+                        <div class="nav-label">Heading</div>
+                        <div class="nav-value" id="headingValue">-- °</div>
+                    </div>
+                    <div class="nav-item">
+                        <div class="nav-label">Route</div>
+                        <div class="nav-value" id="routeValue">--</div>
+                    </div>
+                    <div class="nav-item">
+                        <div class="nav-label">Next Waypoint</div>
+                        <div class="nav-value" id="waypointValue">--</div>
+                    </div>
+                    <div class="nav-item">
+                        <div class="nav-label">Position</div>
+                        <div class="nav-value" id="positionValue">-- °N, -- °W</div>
+                    </div>
+                </div>
+                <div class="compass-display" id="compassDisplay">
+                    <div class="compass-face">
+                        <div class="compass-needle" id="compassNeedle"></div>
+                        <div class="compass-labels">
+                            <span class="compass-n">N</span>
+                            <span class="compass-e">E</span>
+                            <span class="compass-s">S</span>
+                            <span class="compass-w">W</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Historical Charts -->
+        <section class="panel historical-charts">
+            <div class="panel-header">
+                <h2><i class="fas fa-chart-line"></i> Historical Data</h2>
+                <div class="panel-controls">
+                    <select id="chartMetric">
+                        <option value="fuel_efficiency">Fuel Efficiency</option>
+                        <option value="engine_temperature">Engine Temperature</option>
+                        <option value="battery_soc">Battery SOC</option>
+                        <option value="passenger_count">Passenger Count</option>
+                    </select>
+                    <select id="chartRange">
+                        <option value="24h">24 Hours</option>
+                        <option value="7d">7 Days</option>
+                        <option value="30d">30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel-content">
+                <canvas id="historicalChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Alerts Panel -->
+        <section class="panel alerts-panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-bell"></i> Active Alerts</h2>
+                <div class="alert-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="critical">Critical</button>
+                    <button class="filter-btn" data-filter="warning">Warning</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="alerts-list" id="alertsList">
+                    <!-- Alerts will be populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Weather and Environment -->
+        <section class="panel weather-environment">
+            <div class="panel-header">
+                <h2><i class="fas fa-cloud-sun"></i> Weather & Environment</h2>
+            </div>
+            <div class="panel-content">
+                <div class="weather-grid">
+                    <div class="weather-item">
+                        <div class="weather-icon">
+                            <i class="fas fa-wind"></i>
+                        </div>
+                        <div class="weather-label">Wind</div>
+                        <div class="weather-value" id="windValue">-- kts</div>
+                        <div class="weather-sub" id="windDirection">--</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-icon">
+                            <i class="fas fa-water"></i>
+                        </div>
+                        <div class="weather-label">Wave Height</div>
+                        <div class="weather-value" id="waveValue">-- m</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="weather-label">Visibility</div>
+                        <div class="weather-value" id="visibilityValue">-- nm</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-icon">
+                            <i class="fas fa-thermometer-half"></i>
+                        </div>
+                        <div class="weather-label">Temperature</div>
+                        <div class="weather-value" id="temperatureValue">-- °C</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Emergency Alert Modal -->
+    <div class="modal" id="emergencyModal">
+        <div class="modal-content emergency">
+            <div class="modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> EMERGENCY ALERT</h2>
+            </div>
+            <div class="modal-body">
+                <div class="emergency-details" id="emergencyDetails">
+                    <!-- Emergency details will be populated -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="acknowledgeEmergency()">
+                    Acknowledge
+                </button>
+                <button class="btn btn-secondary" onclick="closeEmergencyModal()">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-ship fa-spin"></i>
+            <p>Connecting to Operations Center...</p>
+        </div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div id="debugPanel" class="debug-panel">
+        <div class="debug-header">
+            <span>🔍 MQTT Debug Console</span>
+            <span class="debug-close" onclick="toggleDebugPanel()">×</span>
+        </div>
+        
+        <div class="debug-status-indicators" id="debugStatusIndicators">
+            <div class="debug-indicator mqtt-connecting" id="debugMQTTStatus">MQTT: Initializing</div>
+            <div class="debug-indicator" id="debugDashboardStatus">Dashboard: Loading</div>
+        </div>
+        
+        <div class="debug-tabs">
+            <div class="debug-tab active" data-tab="mqtt" onclick="switchDebugTab('mqtt')">MQTT</div>
+            <div class="debug-tab" data-tab="dashboard" onclick="switchDebugTab('dashboard')">Dashboard</div>
+            <div class="debug-tab" data-tab="elements" onclick="switchDebugTab('elements')">Elements</div>
+            <div class="debug-tab" data-tab="console" onclick="switchDebugTab('console')">Console</div>
+        </div>
+        
+        <div class="debug-content" id="debugContent">
+            <div id="debugMQTTContent">Loading MQTT debug info...</div>
+            <div id="debugDashboardContent" style="display: none;">Loading dashboard debug info...</div>
+            <div id="debugElementsContent" style="display: none;">Loading element debug info...</div>
+            <div id="debugConsoleContent" style="display: none;">Console output will appear here...</div>
+        </div>
+        
+        <div class="debug-controls">
+            <button class="debug-btn" onclick="clearDebugLog()">Clear</button>
+            <button class="debug-btn" onclick="downloadDebugReport()">Download Report</button>
+            <button class="debug-btn" onclick="runDiagnostics()">Run Diagnostics</button>
+            <button class="debug-btn" onclick="toggleDebugVerbose()">Toggle Verbose</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/dashboard.js"></script>
+    <script src="js/gauges.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/mqtt-manager.js"></script>
+    
+    <!-- Debug Panel Scripts -->
+    <script>
+        // Initialize debug functionality after all other scripts load
+        window.addEventListener('load', function() {
+            // Initialize debug panel with comprehensive instrumentation
+            window.debugPanel = {
+                entries: [],
+                currentTab: 'mqtt',
+                verbose: false,
+                
+                init: function() {
+                    console.log('🔍 Debug panel initialized for operations dashboard');
+                    this.createDebugCSS();
+                    this.updateStatusIndicators();
+                    
+                    // Set up keyboard shortcut (Ctrl+Shift+D)
+                    document.addEventListener('keydown', (e) => {
+                        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                            e.preventDefault();
+                            window.toggleDebugPanel();
+                        }
+                    });
+                    
+                    // Intercept console methods
+                    this.interceptConsole();
+                    
+                    // Start monitoring
+                    setInterval(() => {
+                        if (document.getElementById('debugPanel').classList.contains('visible')) {
+                            this.updateStatusIndicators();
+                        }
+                    }, 1000);
+                },
+                
+                createDebugCSS: function() {
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        .debug-panel {
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            width: 400px;
+                            max-height: 80vh;
+                            background: rgba(0, 0, 0, 0.95);
+                            border: 2px solid #4fc3f7;
+                            border-radius: 10px;
+                            color: white;
+                            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                            font-size: 11px;
+                            overflow: hidden;
+                            z-index: 10000;
+                            display: none;
+                            backdrop-filter: blur(10px);
+                        }
+                        
+                        .debug-panel.visible {
+                            display: block;
+                        }
+                        
+                        .debug-header {
+                            background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+                            color: black;
+                            padding: 10px;
+                            font-weight: bold;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        }
+                        
+                        .debug-close {
+                            cursor: pointer;
+                            font-size: 18px;
+                            font-weight: bold;
+                            width: 20px;
+                            height: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            background: rgba(0,0,0,0.2);
+                        }
+                        
+                        .debug-close:hover {
+                            background: rgba(255,0,0,0.3);
+                        }
+                        
+                        .debug-status-indicators {
+                            display: flex;
+                            gap: 5px;
+                            padding: 10px;
+                            background: rgba(255,255,255,0.05);
+                            border-bottom: 1px solid rgba(255,255,255,0.1);
+                        }
+                        
+                        .debug-indicator {
+                            padding: 4px 8px;
+                            border-radius: 12px;
+                            font-size: 9px;
+                            font-weight: bold;
+                            text-transform: uppercase;
+                            background: #666;
+                        }
+                        
+                        .debug-indicator.mqtt-connected {
+                            background: #4caf50;
+                            color: white;
+                        }
+                        
+                        .debug-indicator.mqtt-error {
+                            background: #f44336;
+                            color: white;
+                            animation: pulse 1s infinite;
+                        }
+                        
+                        .debug-indicator.mqtt-connecting {
+                            background: #ff9800;
+                            color: white;
+                        }
+                        
+                        @keyframes pulse {
+                            0%, 100% { opacity: 1; }
+                            50% { opacity: 0.7; }
+                        }
+                        
+                        .debug-tabs {
+                            display: flex;
+                            background: rgba(255, 255, 255, 0.1);
+                        }
+                        
+                        .debug-tab {
+                            flex: 1;
+                            padding: 8px 4px;
+                            text-align: center;
+                            cursor: pointer;
+                            border-right: 1px solid rgba(255, 255, 255, 0.2);
+                            font-size: 10px;
+                            text-transform: uppercase;
+                            font-weight: 600;
+                        }
+                        
+                        .debug-tab:last-child {
+                            border-right: none;
+                        }
+                        
+                        .debug-tab.active {
+                            background: #4fc3f7;
+                            color: black;
+                        }
+                        
+                        .debug-tab:hover:not(.active) {
+                            background: rgba(79, 195, 247, 0.3);
+                        }
+                        
+                        .debug-content {
+                            max-height: 50vh;
+                            overflow-y: auto;
+                            padding: 10px;
+                        }
+                        
+                        .debug-entry {
+                            margin-bottom: 8px;
+                            padding: 6px;
+                            border-left: 3px solid #4fc3f7;
+                            background: rgba(255, 255, 255, 0.03);
+                            border-radius: 0 4px 4px 0;
+                        }
+                        
+                        .debug-entry.error {
+                            border-left-color: #f44336;
+                            background: rgba(244, 67, 54, 0.1);
+                        }
+                        
+                        .debug-entry.success {
+                            border-left-color: #4caf50;
+                            background: rgba(76, 175, 80, 0.1);
+                        }
+                        
+                        .debug-timestamp {
+                            color: #81c784;
+                            font-size: 9px;
+                            margin-bottom: 2px;
+                        }
+                        
+                        .debug-category {
+                            color: #ffb74d;
+                            font-weight: bold;
+                            font-size: 9px;
+                            text-transform: uppercase;
+                        }
+                        
+                        .debug-message {
+                            margin: 4px 0;
+                            font-size: 10px;
+                            line-height: 1.3;
+                        }
+                        
+                        .debug-data {
+                            background: rgba(0, 0, 0, 0.4);
+                            padding: 6px;
+                            border-radius: 3px;
+                            margin-top: 4px;
+                            font-size: 9px;
+                            white-space: pre-wrap;
+                            max-height: 120px;
+                            overflow-y: auto;
+                            border: 1px solid rgba(255,255,255,0.1);
+                        }
+                        
+                        .debug-controls {
+                            padding: 10px;
+                            border-top: 1px solid rgba(255, 255, 255, 0.2);
+                            display: flex;
+                            gap: 8px;
+                            flex-wrap: wrap;
+                        }
+                        
+                        .debug-btn {
+                            padding: 4px 8px;
+                            border: 1px solid #4fc3f7;
+                            background: transparent;
+                            color: #4fc3f7;
+                            border-radius: 3px;
+                            cursor: pointer;
+                            font-size: 9px;
+                            font-weight: 600;
+                            text-transform: uppercase;
+                        }
+                        
+                        .debug-btn:hover {
+                            background: #4fc3f7;
+                            color: black;
+                        }
+                        
+                        .debug-content::-webkit-scrollbar {
+                            width: 6px;
+                        }
+                        
+                        .debug-content::-webkit-scrollbar-track {
+                            background: rgba(255,255,255,0.1);
+                        }
+                        
+                        .debug-content::-webkit-scrollbar-thumb {
+                            background: #4fc3f7;
+                            border-radius: 3px;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                },
+                
+                addEntry: function(category, message, data, type = 'info') {
+                    const entry = {
+                        timestamp: new Date().toISOString(),
+                        category,
+                        message,
+                        data: data ? JSON.stringify(data, null, 2) : null,
+                        type
+                    };
+                    
+                    this.entries.push(entry);
+                    
+                    // Keep only last 200 entries
+                    if (this.entries.length > 200) {
+                        this.entries = this.entries.slice(-200);
+                    }
+                    
+                    this.updateContent();
+                },
+                
+                updateStatusIndicators: function() {
+                    const mqttStatus = document.getElementById('debugMQTTStatus');
+                    const dashboardStatus = document.getElementById('debugDashboardStatus');
+                    
+                    if (!mqttStatus || !dashboardStatus) return;
+                    
+                    // Update MQTT status
+                    if (window.mqttManager && window.mqttManager.isConnected && window.mqttManager.isConnected()) {
+                        mqttStatus.textContent = 'MQTT: Connected';
+                        mqttStatus.className = 'debug-indicator mqtt-connected';
+                    } else if (window.mqttManager) {
+                        mqttStatus.textContent = 'MQTT: Disconnected';
+                        mqttStatus.className = 'debug-indicator mqtt-error';
+                    } else {
+                        mqttStatus.textContent = 'MQTT: Not Initialized';
+                        mqttStatus.className = 'debug-indicator mqtt-connecting';
+                    }
+                    
+                    // Update dashboard status
+                    if (window.dashboard) {
+                        dashboardStatus.textContent = 'Dashboard: Ready';
+                        dashboardStatus.className = 'debug-indicator mqtt-connected';
+                    } else {
+                        dashboardStatus.textContent = 'Dashboard: Loading';
+                        dashboardStatus.className = 'debug-indicator mqtt-connecting';
+                    }
+                },
+                
+                updateContent: function() {
+                    if (!document.getElementById('debugPanel') || !document.getElementById('debugPanel').classList.contains('visible')) return;
+                    
+                    const contentId = `debug${this.currentTab.charAt(0).toUpperCase() + this.currentTab.slice(1)}Content`;
+                    const contentElement = document.getElementById(contentId);
+                    
+                    if (!contentElement) return;
+                    
+                    let filteredEntries = this.entries;
+                    
+                    if (this.currentTab === 'mqtt') {
+                        filteredEntries = this.entries.filter(e => 
+                            e.category.includes('mqtt') || 
+                            e.category.includes('connection') || 
+                            e.category.includes('auth') || 
+                            e.category.includes('broker') ||
+                            e.category.includes('statusUpdate')
+                        );
+                    } else if (this.currentTab === 'dashboard') {
+                        filteredEntries = this.entries.filter(e => 
+                            e.category.includes('dashboard') || 
+                            e.category.includes('statusUpdate') || 
+                            e.category.includes('domManipulation')
+                        );
+                    } else if (this.currentTab === 'elements') {
+                        filteredEntries = this.entries.filter(e => 
+                            e.category.includes('element') || 
+                            e.category.includes('dom')
+                        );
+                    }
+                    
+                    contentElement.innerHTML = filteredEntries.slice(-30).map(entry => `
+                        <div class="debug-entry ${entry.type}">
+                            <div class="debug-timestamp">${new Date(entry.timestamp).toLocaleTimeString()}.${new Date(entry.timestamp).getMilliseconds()}</div>
+                            <div class="debug-category">${entry.category}</div>
+                            <div class="debug-message">${entry.message}</div>
+                            ${entry.data ? `<div class="debug-data">${entry.data}</div>` : ''}
+                        </div>
+                    `).join('');
+                    
+                    // Auto-scroll to bottom
+                    contentElement.scrollTop = contentElement.scrollHeight;
+                },
+                
+                interceptConsole: function() {
+                    const originalLog = console.log;
+                    const originalError = console.error;
+                    const originalWarn = console.warn;
+                    
+                    console.log = (...args) => {
+                        originalLog.apply(console, args);
+                        if (this.currentTab === 'console' || this.verbose) {
+                            this.addConsoleEntry('log', args.join(' '));
+                        }
+                    };
+                    
+                    console.error = (...args) => {
+                        originalError.apply(console, args);
+                        this.addConsoleEntry('error', args.join(' '), null, 'error');
+                    };
+                    
+                    console.warn = (...args) => {
+                        originalWarn.apply(console, args);
+                        this.addConsoleEntry('warn', args.join(' '));
+                    };
+                },
+                
+                addConsoleEntry: function(level, message, data = null, type = 'info') {
+                    const consoleContent = document.getElementById('debugConsoleContent');
+                    if (consoleContent && (this.currentTab === 'console' || this.verbose)) {
+                        const entry = document.createElement('div');
+                        entry.className = `debug-entry console-${level} ${type}`;
+                        entry.innerHTML = `
+                            <div class="debug-timestamp">${new Date().toLocaleTimeString()}.${new Date().getMilliseconds()}</div>
+                            <div class="debug-category">CONSOLE-${level.toUpperCase()}</div>
+                            <div class="debug-message">${message}</div>
+                        `;
+                        consoleContent.appendChild(entry);
+                        consoleContent.scrollTop = consoleContent.scrollHeight;
+                        
+                        // Keep only last 50 console entries
+                        while (consoleContent.children.length > 50) {
+                            consoleContent.removeChild(consoleContent.firstChild);
+                        }
+                    }
+                }
+            };
+            
+            // Initialize debug panel
+            window.debugPanel.init();
+            
+            // Global debug functions
+            window.toggleDebugPanel = function() {
+                const panel = document.getElementById('debugPanel');
+                panel.classList.toggle('visible');
+                
+                if (panel.classList.contains('visible')) {
+                    // Enable debug logging
+                    if (window.mqttDebug) window.mqttDebug.enabled = true;
+                    if (window.dashboardDebug) window.dashboardDebug.enabled = true;
+                    
+                    window.debugPanel.addEntry('system', 'Debug panel opened - monitoring enabled', null, 'success');
+                    window.debugPanel.updateStatusIndicators();
+                    window.debugPanel.updateContent();
+                } else {
+                    // Disable debug logging
+                    if (window.mqttDebug) window.mqttDebug.enabled = false;
+                    if (window.dashboardDebug) window.dashboardDebug.enabled = false;
+                    
+                    console.log('🔍 Debug panel closed');
+                }
+            };
+            
+            window.switchDebugTab = function(tab) {
+                // Update tab appearance
+                document.querySelectorAll('.debug-tab').forEach(t => t.classList.remove('active'));
+                const tabElement = document.querySelector(`[data-tab="${tab}"]`);
+                if (tabElement) tabElement.classList.add('active');
+                
+                // Hide all content
+                const contentIds = ['debugMQTTContent', 'debugDashboardContent', 'debugElementsContent', 'debugConsoleContent'];
+                contentIds.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'none';
+                });
+                
+                // Show selected content
+                const contentId = `debug${tab.charAt(0).toUpperCase() + tab.slice(1)}Content`;
+                const selectedContent = document.getElementById(contentId);
+                if (selectedContent) selectedContent.style.display = 'block';
+                
+                window.debugPanel.currentTab = tab;
+                window.debugPanel.updateContent();
+            };
+            
+            window.clearDebugLog = function() {
+                window.debugPanel.entries = [];
+                if (window.mqttDebug) {
+                    Object.keys(window.mqttDebug).forEach(key => {
+                        if (Array.isArray(window.mqttDebug[key])) {
+                            window.mqttDebug[key] = [];
+                        }
+                    });
+                }
+                if (window.dashboardDebug) {
+                    Object.keys(window.dashboardDebug).forEach(key => {
+                        if (Array.isArray(window.dashboardDebug[key])) {
+                            window.dashboardDebug[key] = [];
+                        }
+                    });
+                }
+                window.debugPanel.updateContent();
+                window.debugPanel.addEntry('system', 'Debug logs cleared', null, 'success');
+            };
+            
+            window.downloadDebugReport = function() {
+                const report = {
+                    timestamp: new Date().toISOString(),
+                    location: window.location.href,
+                    userAgent: navigator.userAgent,
+                    debugEntries: window.debugPanel.entries,
+                    mqttDebug: window.mqttDebug || null,
+                    dashboardDebug: window.dashboardDebug || null,
+                    windowObjects: {
+                        mqttManager: !!window.mqttManager,
+                        dashboard: !!window.dashboard,
+                        mqttDebug: !!window.mqttDebug,
+                        dashboardDebug: !!window.dashboardDebug
+                    },
+                    domElements: {
+                        mqttStatusIndicator: !!document.getElementById('mqttStatusIndicator'),
+                        mqttStatusText: !!document.getElementById('mqttStatusText'),
+                        connectionStatus: !!document.getElementById('connectionStatus')
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `mqtt-debug-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                window.debugPanel.addEntry('system', 'Debug report downloaded', { filename: a.download }, 'success');
+            };
+            
+            window.runDiagnostics = function() {
+                window.debugPanel.addEntry('diagnostics', 'Starting comprehensive diagnostics...', null, 'info');
+                
+                const diagnostics = {
+                    timestamp: new Date().toISOString(),
+                    windowObjects: {
+                        mqttManager: { 
+                            exists: !!window.mqttManager,
+                            type: typeof window.mqttManager,
+                            connected: window.mqttManager && window.mqttManager.isConnected ? window.mqttManager.isConnected() : false,
+                            client: window.mqttManager && window.mqttManager.client ? {
+                                connected: window.mqttManager.client.connected,
+                                reconnecting: window.mqttManager.client.reconnecting
+                            } : null
+                        },
+                        dashboard: {
+                            exists: !!window.dashboard,
+                            type: typeof window.dashboard,
+                            updateMQTTStatus: typeof (window.dashboard && window.dashboard.updateMQTTStatus)
+                        }
+                    },
+                    domElements: {
+                        mqttStatusIndicator: {
+                            exists: !!document.getElementById('mqttStatusIndicator'),
+                            classes: document.getElementById('mqttStatusIndicator') ? Array.from(document.getElementById('mqttStatusIndicator').classList) : [],
+                            id: document.getElementById('mqttStatusIndicator') ? document.getElementById('mqttStatusIndicator').id : null
+                        },
+                        mqttStatusText: {
+                            exists: !!document.getElementById('mqttStatusText'),
+                            textContent: document.getElementById('mqttStatusText') ? document.getElementById('mqttStatusText').textContent : null
+                        },
+                        connectionStatus: {
+                            exists: !!document.getElementById('connectionStatus'),
+                            classes: document.getElementById('connectionStatus') ? Array.from(document.getElementById('connectionStatus').classList) : []
+                        }
+                    },
+                    debugStates: {
+                        mqttDebugEnabled: window.mqttDebug ? window.mqttDebug.enabled : false,
+                        dashboardDebugEnabled: window.dashboardDebug ? window.dashboardDebug.enabled : false,
+                        totalEntries: window.debugPanel.entries.length
+                    }
+                };
+                
+                console.log('🔧 Diagnostics complete:', diagnostics);
+                window.debugPanel.addEntry('diagnostics', 'Diagnostics completed', diagnostics, 'success');
+            };
+            
+            window.toggleDebugVerbose = function() {
+                window.debugPanel.verbose = !window.debugPanel.verbose;
+                const state = window.debugPanel.verbose ? 'enabled' : 'disabled';
+                console.log(`🔍 Debug verbose mode: ${state}`);
+                window.debugPanel.addEntry('system', `Verbose mode ${state}`, null, 'info');
+            };
+            
+            // Show initialization message
+            setTimeout(() => {
+                console.log('🔍 MQTT Debug System Ready');
+                console.log('🔍 Press Ctrl+Shift+D to open debug panel');
+                console.log('🔍 Debug features: Real-time MQTT monitoring, DOM inspection, console capture');
+                
+                window.debugPanel.addEntry('system', 'Debug system initialized', {
+                    shortcut: 'Ctrl+Shift+D',
+                    features: ['MQTT monitoring', 'Dashboard tracking', 'DOM inspection', 'Console capture']
+                }, 'success');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

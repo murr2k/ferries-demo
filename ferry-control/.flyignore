@@ -1,0 +1,11 @@
+# Prevent ferry control files from being deployed to ops dashboard
+# This project contains FERRY CONTROL files, not OPS DASHBOARD files
+public/
+lib/
+config/
+scripts/
+*.js
+*.html
+*.css
+
+# Only deploy if explicitly building ops dashboard

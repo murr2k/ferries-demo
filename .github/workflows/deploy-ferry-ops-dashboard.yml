@@ -1,0 +1,23 @@
+name: Deploy Ferry Ops Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ferry-ops-dashboard/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        working-directory: ferry-ops-dashboard
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

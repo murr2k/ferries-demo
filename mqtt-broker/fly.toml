@@ -1,0 +1,39 @@
+app = "bc-ferries-mqtt-broker"
+primary_region = "sea"
+
+[build]
+
+[mounts]
+  source = "mqtt_data"
+  destination = "/mosquitto/data"
+
+[[services]]
+  internal_port = 1883
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 1883
+    handlers = []
+
+[[services]]
+  internal_port = 9001
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 9001
+    handlers = ["tls"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "proxy_proto"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
